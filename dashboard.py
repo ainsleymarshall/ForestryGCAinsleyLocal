@@ -2237,10 +2237,15 @@ with tab_econ:
                     section("Cash Flow Plots")
                     try:
                         _figs2 = bem.plot_all(_bdf2, _bmts2)
-                        # Filter out the Net Income plot — not needed in dashboard
+                        # Filter out Net Income, then reorder so generation sits
+                        # left of debt_service (under it visually in the 2-col grid)
                         if isinstance(_figs2, dict):
                             _figs2 = {k: v for k, v in _figs2.items()
                                       if "net income" not in k.lower() and "income" not in k.lower()}
+                            # Desired order: cumulative, annual, debt_service, opex_pie, generation
+                            _order = ["cumulative_cashflow", "annual_cashflow",
+                                      "debt_service", "opex_pie", "generation"]
+                            _figs2 = {k: _figs2[k] for k in _order if k in _figs2}
                         render_plot_all(_figs2)
                     except Exception as _pe2:
                         st.error(f"Plot error: {_pe2}")
