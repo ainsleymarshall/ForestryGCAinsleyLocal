@@ -3509,9 +3509,9 @@ with tab_policy:
                     _sp_cr_nons = st.number_input("Non-SAF credit ($/GGE)",0.01,2.0,0.20,0.01,format="%.3f",key="sp_cr_nons")
                     _sp_cr_dur  = st.number_input("Credit duration (yr)",1,20,10,1,key="sp_cr_dur")
                 with _scr2:
-                    _sp_jet_mkt_gal = st.number_input("Jet-A market ($/gal)", 0.1, 20.0, round(0.82*L_PER_GAL, 3), 0.01, format="%.3f", key="sp_jet_mkt")
-                    _sp_die_mkt_gal = st.number_input("Diesel market ($/gal)",0.1, 20.0, round(1.34*L_PER_GAL, 3), 0.01, format="%.3f", key="sp_die_mkt")
-                    _sp_nap_mkt_gal = st.number_input("Naphtha market ($/gal)",0.1,20.0, round(0.98*L_PER_GAL, 3), 0.01, format="%.3f", key="sp_nap_mkt")
+                    _sp_jet_mkt_gal = st.number_input("Jet-A market ($/gal)", 0.1, 20.0, 4.09, 0.01, format="%.3f", key="sp_jet_mkt")
+                    _sp_die_mkt_gal = st.number_input("Diesel market ($/gal)",0.1, 20.0, 5.41, 0.01, format="%.3f", key="sp_die_mkt")
+                    _sp_nap_mkt_gal = st.number_input("Naphtha market ($/gal)",0.1,20.0, 3.79, 0.01, format="%.3f", key="sp_nap_mkt")
                     _sp_jet_mkt = _sp_jet_mkt_gal / L_PER_GAL
                     _sp_die_mkt = _sp_die_mkt_gal / L_PER_GAL
                     _sp_nap_mkt = _sp_nap_mkt_gal / L_PER_GAL
