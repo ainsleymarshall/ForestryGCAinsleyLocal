@@ -507,11 +507,18 @@ def render_saved_png(rel_path: str) -> None:
     else:
         st.caption(f"Plot not yet saved: {rel_path}")
 
+
 def _make_lca_stage_fig(stages, mode_str, total_odt):
     """
-    Two side-by-side subplots under one shared heading.
-    Left : Processing + Transport  (t CO₂e / yr)
-    Right: Production (Bioenergy or SAF)  (t CO₂e / yr)
+    Build and return a matplotlib figure showing LCA emissions by stage.
+    Used by both the Impact tab (saved to PNG) and the Comparison tab (rendered inline).
+
+    Parameters
+    ----------
+    stages    : list of (label, result_dict) where result_dict has
+                bioCO2_t, fossCO2_t, CH4_CO2e, N2O_CO2e keys
+    mode_str  : "SAF" or "Bioenergy"
+    total_odt : total biomass odt/yr for suptitle
     """
     import matplotlib.pyplot as _plt
     import matplotlib.patches as _mp
@@ -522,56 +529,42 @@ def _make_lca_stage_fig(stages, mode_str, total_odt):
     _BG = "#0e1621"; _AX_BG = "#131e2d"
     _TEXT = "#c8d8e8"; _SPINE = "#2a3a4a"; _GRID = "#1e2d3d"
 
-    def _style(ax):
-        ax.set_facecolor(_AX_BG)
-        ax.spines[["top","right"]].set_visible(False)
-        ax.spines[["left","bottom"]].set_color(_SPINE)
-        ax.tick_params(colors=_TEXT, labelsize=11)
-        ax.yaxis.set_major_formatter(_plt.FuncFormatter(lambda v,_: f"{v:,.0f}"))
-        ax.grid(axis="y", color=_GRID, linewidth=0.7, zorder=0)
-
-    def _draw(ax, subset, ylabel):
-        xs = _np.arange(len(subset)); w = 0.50
-        bv = [s[1]["bioCO2_t"]  for s in subset]
-        fv = [s[1]["fossCO2_t"] for s in subset]
-        cv = [s[1]["CH4_CO2e"]  for s in subset]
-        nv = [s[1]["N2O_CO2e"]  for s in subset]
-        b1 = [bv[i]+fv[i] for i in range(len(subset))]
-        b2 = [b1[i]+cv[i] for i in range(len(subset))]
-        tots = [b2[i]+nv[i] for i in range(len(subset))]
-        ax.bar(xs, bv, w, color=_C_BIO,  edgecolor="none", zorder=3)
-        ax.bar(xs, fv, w, bottom=bv, color=_C_FOSS, edgecolor="none", zorder=3)
-        ax.bar(xs, cv, w, bottom=b1, color=_C_CH4,  edgecolor="none", zorder=3)
-        ax.bar(xs, nv, w, bottom=b2, color=_C_N2O,  edgecolor="none", zorder=3)
-        mx = max(tots) if tots else 1
-        ax.set_ylim(0, mx * 1.32)
-        for i, t in enumerate(tots):
-            ax.text(xs[i], t + mx*0.025, f"{t:,.0f}",
-                    ha="center", fontsize=11, fontweight="bold", color="#f0f4f8")
-        ax.set_xticks(xs)
-        ax.set_xticklabels([s[0] for s in subset], fontsize=11, color=_TEXT)
-        ax.set_ylabel(ylabel, fontsize=12, color=_TEXT)
-
-    # Split stages: supply chain (everything except last) vs production (last stage)
-    supply  = [s for s in stages if "roduct" not in s[0] and "ombust" not in s[0]]
-    prod    = [s for s in stages if "roduct" in s[0] or "ombust" in s[0]]
-
-    fig, (ax_l, ax_r) = _plt.subplots(1, 2, figsize=(11.5, 9),
-                                       gridspec_kw={"width_ratios": [2, 1]})
+    fig, ax = _plt.subplots(1, 1, figsize=(9, 7))
     fig.patch.set_facecolor(_BG)
-    _style(ax_l); _style(ax_r)
+    ax.set_facecolor(_AX_BG)
+    ax.spines[["top","right"]].set_visible(False)
+    ax.spines[["left","bottom"]].set_color(_SPINE)
+    ax.tick_params(colors=_TEXT, labelsize=12)
+    ax.yaxis.set_major_formatter(_plt.FuncFormatter(lambda v,_: f"{v:,.0f}"))
+    ax.grid(axis="y", color=_GRID, linewidth=0.7, zorder=0)
 
-    _draw(ax_l, supply, "GHG Emissions  (t CO\u2082e / yr)")
-    ax_l.set_title("Supply Chain — Processing & Transport",
-                   fontsize=12, color=_TEXT, pad=8)
+    xs = _np.arange(len(stages)); w = 0.50
+    bv = [s[1]["bioCO2_t"]  for s in stages]
+    fv = [s[1]["fossCO2_t"] for s in stages]
+    cv = [s[1]["CH4_CO2e"]  for s in stages]
+    nv = [s[1]["N2O_CO2e"]  for s in stages]
+    b1 = [bv[i]+fv[i] for i in range(len(stages))]
+    b2 = [b1[i]+cv[i] for i in range(len(stages))]
+    tots = [b2[i]+nv[i] for i in range(len(stages))]
 
-    if prod:
-        _draw(ax_r, prod, "GHG Emissions  (t CO\u2082e / yr)")
-    else:
-        ax_r.text(0.5, 0.5, "No production\ndata", ha="center", va="center",
-                  transform=ax_r.transAxes, color=_TEXT, fontsize=12)
-    ax_r.set_title(f"Production — {mode_str}",
-                   fontsize=12, color=_TEXT, pad=8)
+    ax.bar(xs, bv, w, color=_C_BIO,  edgecolor="none", zorder=3)
+    ax.bar(xs, fv, w, bottom=bv, color=_C_FOSS, edgecolor="none", zorder=3)
+    ax.bar(xs, cv, w, bottom=b1, color=_C_CH4,  edgecolor="none", zorder=3)
+    ax.bar(xs, nv, w, bottom=b2, color=_C_N2O,  edgecolor="none", zorder=3)
+
+    mx = max(tots) if tots else 1
+    ax.set_ylim(0, mx * 1.32)
+    for i, t in enumerate(tots):
+        ax.text(xs[i], t + mx*0.025, f"{t:,.0f}",
+                ha="center", fontsize=12, fontweight="bold", color="#f0f4f8")
+
+    ax.set_xticks(xs)
+    ax.set_xticklabels([s[0] for s in stages], fontsize=13, color=_TEXT)
+    ax.set_ylabel("GHG Emissions  (t CO\u2082e / yr)", fontsize=13, color=_TEXT)
+    ax.set_title(
+        "Lifecycle GHG by Stage\n(all emission types including biogenic CO\u2082)",
+        fontsize=13, color=_TEXT, pad=10
+    )
 
     lps = [_mp.Patch(color=c, label=l) for c, l in [
         (_C_BIO,  "Biogenic CO\u2082  (wood combustion)"),
@@ -579,94 +572,18 @@ def _make_lca_stage_fig(stages, mode_str, total_odt):
         (_C_CH4,  "CH\u2084 CO\u2082e"),
         (_C_N2O,  "N\u2082O CO\u2082e"),
     ]]
-    fig.legend(handles=lps, fontsize=10, facecolor=_BG,
-               edgecolor=_SPINE, labelcolor=_TEXT,
-               loc="lower center", ncol=4, framealpha=0.85,
-               bbox_to_anchor=(0.5, -0.04))
+    ax.legend(handles=lps, fontsize=11, facecolor=_BG,
+              edgecolor=_SPINE, labelcolor=_TEXT,
+              loc="upper left", framealpha=0.85)
 
     fig.suptitle(
         f"LCA Emissions by Stage  \u2014  {mode_str} mode  |  "
         f"{total_odt/1e3:.0f}k odt/yr  |  GWP100 IPCC AR6",
         fontsize=13, fontweight="bold", color="#e8f0f8"
     )
-    _plt.subplots_adjust(top=0.88, bottom=0.14, left=0.08, right=0.97, wspace=0.30)
+    _plt.subplots_adjust(top=0.88, bottom=0.10, left=0.12, right=0.97)
     return fig
 
-# def _make_lca_stage_fig(stages, mode_str, total_odt):
-#     """
-#     Build and return a matplotlib figure showing LCA emissions by stage.
-#     Used by both the Impact tab (saved to PNG) and the Comparison tab (rendered inline).
-
-#     Parameters
-#     ----------
-#     stages    : list of (label, result_dict) where result_dict has
-#                 bioCO2_t, fossCO2_t, CH4_CO2e, N2O_CO2e keys
-#     mode_str  : "SAF" or "Bioenergy"
-#     total_odt : total biomass odt/yr for suptitle
-#     """
-#     import matplotlib.pyplot as _plt
-#     import matplotlib.patches as _mp
-#     import numpy as _np
-
-#     _C_BIO  = "#2471A3"; _C_FOSS = "#A93226"
-#     _C_CH4  = "#E67E22"; _C_N2O  = "#1E8449"
-#     _BG = "#0e1621"; _AX_BG = "#131e2d"
-#     _TEXT = "#c8d8e8"; _SPINE = "#2a3a4a"; _GRID = "#1e2d3d"
-
-#     fig, ax = _plt.subplots(1, 1, figsize=(9, 7))
-#     fig.patch.set_facecolor(_BG)
-#     ax.set_facecolor(_AX_BG)
-#     ax.spines[["top","right"]].set_visible(False)
-#     ax.spines[["left","bottom"]].set_color(_SPINE)
-#     ax.tick_params(colors=_TEXT, labelsize=12)
-#     ax.yaxis.set_major_formatter(_plt.FuncFormatter(lambda v,_: f"{v:,.0f}"))
-#     ax.grid(axis="y", color=_GRID, linewidth=0.7, zorder=0)
-
-#     xs = _np.arange(len(stages)); w = 0.50
-#     bv = [s[1]["bioCO2_t"]  for s in stages]
-#     fv = [s[1]["fossCO2_t"] for s in stages]
-#     cv = [s[1]["CH4_CO2e"]  for s in stages]
-#     nv = [s[1]["N2O_CO2e"]  for s in stages]
-#     b1 = [bv[i]+fv[i] for i in range(len(stages))]
-#     b2 = [b1[i]+cv[i] for i in range(len(stages))]
-#     tots = [b2[i]+nv[i] for i in range(len(stages))]
-
-#     ax.bar(xs, bv, w, color=_C_BIO,  edgecolor="none", zorder=3)
-#     ax.bar(xs, fv, w, bottom=bv, color=_C_FOSS, edgecolor="none", zorder=3)
-#     ax.bar(xs, cv, w, bottom=b1, color=_C_CH4,  edgecolor="none", zorder=3)
-#     ax.bar(xs, nv, w, bottom=b2, color=_C_N2O,  edgecolor="none", zorder=3)
-
-#     mx = max(tots) if tots else 1
-#     ax.set_ylim(0, mx * 1.32)
-#     for i, t in enumerate(tots):
-#         ax.text(xs[i], t + mx*0.025, f"{t:,.0f}",
-#                 ha="center", fontsize=12, fontweight="bold", color="#f0f4f8")
-
-#     ax.set_xticks(xs)
-#     ax.set_xticklabels([s[0] for s in stages], fontsize=13, color=_TEXT)
-#     ax.set_ylabel("GHG Emissions  (t CO\u2082e / yr)", fontsize=13, color=_TEXT)
-#     ax.set_title(
-#         "Lifecycle GHG by Stage\n(all emission types including biogenic CO\u2082)",
-#         fontsize=13, color=_TEXT, pad=10
-#     )
-
-#     lps = [_mp.Patch(color=c, label=l) for c, l in [
-#         (_C_BIO,  "Biogenic CO\u2082  (wood combustion)"),
-#         (_C_FOSS, "Fossil CO\u2082  (NG heat / diesel)"),
-#         (_C_CH4,  "CH\u2084 CO\u2082e"),
-#         (_C_N2O,  "N\u2082O CO\u2082e"),
-#     ]]
-#     ax.legend(handles=lps, fontsize=11, facecolor=_BG,
-#               edgecolor=_SPINE, labelcolor=_TEXT,
-#               loc="upper left", framealpha=0.85)
-
-#     fig.suptitle(
-#         f"LCA Emissions by Stage  \u2014  {mode_str} mode  |  "
-#         f"{total_odt/1e3:.0f}k odt/yr  |  GWP100 IPCC AR6",
-#         fontsize=13, fontweight="bold", color="#e8f0f8"
-#     )
-#     _plt.subplots_adjust(top=0.88, bottom=0.10, left=0.12, right=0.97)
-#     return fig
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SESSION STATE  ─  initialise all keys with defaults so tabs can read
@@ -1109,10 +1026,14 @@ with tab_sc:
             )
             # Stadia Alidade Smooth Dark — dark basemap, crisp white labels,
             # much better contrast than CartoDB Dark Matter
+            _stadia_key = os.environ.get("STADIA_API_KEY", "")
+            _stadia_url = (
+                f"https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{{z}}/{{x}}/{{y}}{{r}}.png"
+                + (f"?api_key={_stadia_key}" if _stadia_key else "")
+            )
             folium.TileLayer(
-                tiles="https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png",
+                tiles=_stadia_url,
                 attr='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; OpenMapTiles &copy; OpenStreetMap',
-                # name="Stadia Smooth Dark",
                 max_zoom=20,
                 opacity=1.0,               # full opacity for maximum contrast
             ).add_to(fmap)
@@ -2451,8 +2372,8 @@ with tab_impact:
         # Use metric tonnes directly — all LCA modules use ODT as "odt" loosely
         _auto_total_odt = 0
         _auto_hq_odt    = 0
-        # _auto_dist  = 161.0
-        _auto_dist  = 100.0
+        _auto_dist_saf  = 161.0
+        _auto_dist_bio  = 100.0
         _f_kdry = _m_kdry = _pw_kdry = 0  # initialized here; overwritten below if data available
 
         if _tr_res:
@@ -2476,18 +2397,18 @@ with tab_impact:
             _pw_d = _tr_res.get("pulpwood", {}).get("dist_mi")
             if _f_d: _auto_dist_saf = round(_f_d * KM_PER_MILE, 1)   # forest → SAF plant (km)
             # Per-source distances for bioenergy transport (km); default to forest dist if missing
-            _auto_dist_f  = round(_f_d  * KM_PER_MILE, 1) if _f_d  else _auto_dist
-            _auto_dist_m  = round(_m_d  * KM_PER_MILE, 1) if _m_d  else _auto_dist
-            _auto_dist_pw = round(_pw_d * KM_PER_MILE, 1) if _pw_d else _auto_dist
+            _auto_dist_bio_f  = round(_f_d  * KM_PER_MILE, 1) if _f_d  else _auto_dist_bio
+            _auto_dist_bio_m  = round(_m_d  * KM_PER_MILE, 1) if _m_d  else _auto_dist_bio
+            _auto_dist_bio_pw = round(_pw_d * KM_PER_MILE, 1) if _pw_d else _auto_dist_bio
         else:
-            _auto_dist_f  = _auto_dist
-            _auto_dist_m  = _auto_dist
-            _auto_dist_pw = _auto_dist
+            _auto_dist_bio_f  = _auto_dist_bio
+            _auto_dist_bio_m  = _auto_dist_bio
+            _auto_dist_bio_pw = _auto_dist_bio
         # Display in miles
-        # _auto_dist_saf_mi   = round(_auto_dist_saf / KM_PER_MILE, 1)
-        _auto_dist_f_mi = round(_auto_dist_f  / KM_PER_MILE, 1)
-        _auto_dist_m_mi = round(_auto_dist_m  / KM_PER_MILE, 1)
-        _auto_dist_pw_mi= round(_auto_dist_pw / KM_PER_MILE, 1)
+        _auto_dist_saf_mi   = round(_auto_dist_saf / KM_PER_MILE, 1)
+        _auto_dist_bio_f_mi = round(_auto_dist_bio_f  / KM_PER_MILE, 1)
+        _auto_dist_bio_m_mi = round(_auto_dist_bio_m  / KM_PER_MILE, 1)
+        _auto_dist_bio_pw_mi= round(_auto_dist_bio_pw / KM_PER_MILE, 1)
 
         # ── AUTO-FILLED VALUES (computed before layout) ─────────────────────
         _auto_tr = st.session_state.get("tr_results")
@@ -2566,25 +2487,27 @@ with tab_impact:
             _pw_eff_disp = _pw_kdry * 1000
             _source = "Transport tab (post-obtainability)" if _tr_lca else "Supply Chain (pre-obtainability fallback)"
             info(
-                    f"<b>Auto-Filled from {_source}:</b>  "
-                    f"Forest{'(HQ)' if IS_SAF else ''}: <b>{_f_eff_disp:,.0f} odt/yr</b> "
-                    f"({_f_ob_disp}% obtainability, Opt {_f_opt})  |  "
-                    f"Mill: <b>{_m_eff_disp:,.0f} odt/yr</b> "
-                    f"({_m_ob_disp}% obtainability, Opt {_m_opt})"
-                    + (f"  |  Pulpwood: <b>{_pw_eff_disp:,.0f} odt/yr</b> "
-                    f"({_pw_ob_disp}% obtainability, Opt {_pw_opt})" if IS_SAF else "")
-                    + (
-                        f"<br>SAF: <b>{_auto_saf_L/L_PER_GAL/1e6:.2f}M</b>  "
-                        f"Diesel: <b>{_auto_die_L/L_PER_GAL/1e6:.2f}M</b>  "
-                        f"Naphtha: <b>{_auto_nap_L/L_PER_GAL/1e6:.2f}M gal/yr</b>"
-                        f"  <i>(from {_fuel_vol_source})</i>"
-                        if IS_SAF else ""
-                    )
-                    + f"<br>Haul distances — "
-                    f"Forest: <b>{_auto_dist_f_mi:.0f} mi</b>  "
-                    f"Mill: <b>{_auto_dist_m_mi:.0f} mi</b>"
-                    + (f"  |  Pulpwood: <b>{_auto_dist_pw_mi:.0f} mi</b>" if IS_SAF else "")
+                f"<b>Auto-Filled from {_source}:</b>  "
+                f"Forest{'(HQ)' if IS_SAF else ''}: <b>{_f_eff_disp:,.0f} odt/yr</b> "
+                f"({_f_ob_disp}% obtainability, Opt {_f_opt})  |  "
+                f"Mill: <b>{_m_eff_disp:,.0f} odt/yr</b> "
+                f"({_m_ob_disp}% obtainability, Opt {_m_opt})"
+                + (f"  |  Pulpwood: <b>{_pw_eff_disp:,.0f} odt/yr</b> "
+                   f"({_pw_ob_disp}% obtainability, Opt {_pw_opt})" if IS_SAF else "")
+                + (
+                    f"<br>Distance to SAF plant: <b>{_auto_dist_saf_mi:.0f} mi</b>"
+                    f" ({_auto_dist_saf:.1f} km)  |  "
+                    f"SAF: <b>{_auto_saf_L/L_PER_GAL/1e6:.2f}M</b>  "
+                    f"Diesel: <b>{_auto_die_L/L_PER_GAL/1e6:.2f}M</b>  "
+                    f"Naphtha: <b>{_auto_nap_L/L_PER_GAL/1e6:.2f}M gal/yr</b>"
+                    f"  <i>(from {_fuel_vol_source})</i>"
+                    if IS_SAF else
+                    f"<br>Haul distances — "
+                    f"Forest: <b>{_auto_dist_bio_f_mi:.0f} mi</b>  "
+                    f"Mill: <b>{_auto_dist_bio_m_mi:.0f} mi</b>  "
+                    f"Pulpwood: <b>{_auto_dist_bio_pw_mi:.0f} mi</b>"
                 )
+            )
             if IS_SAF and _fuel_vol_source is None:
                 warn(
                     "<b>SAF Economics not yet run.</b> Fuel volumes are module defaults "
@@ -2607,17 +2530,11 @@ with tab_impact:
             lca_payload_kg          = _bt_payload_forest
             lca_payload_kg_mill     = _bt_payload_mill
             lca_payload_kg_pulpwood = _bt_payload_pulpwood
-            # st.caption(
-            #     f"Truck Payload (OD kg/load) by source:  \n"
-            #     f"**Forest** ({_active_forest_opt}): {lca_payload_kg:,}  \n"
-            #     f"**Mill** ({_active_mill_opt}): {lca_payload_kg_mill:,}  \n"
-            #     f"**Pulpwood** ({_active_pulpwood_opt}): {lca_payload_kg_pulpwood:,}"
-            # )
             st.caption(
                 f"Truck Payload (OD kg/load) by source:  \n"
                 f"**Forest** ({_active_forest_opt}): {lca_payload_kg:,}  \n"
-                f"**Mill** ({_active_mill_opt}): {lca_payload_kg_mill:,}"
-                + (f"  \n**Pulpwood** ({_active_pulpwood_opt}): {lca_payload_kg_pulpwood:,}" if IS_SAF else "")
+                f"**Mill** ({_active_mill_opt}): {lca_payload_kg_mill:,}  \n"
+                f"**Pulpwood** ({_active_pulpwood_opt}): {lca_payload_kg_pulpwood:,}"
             )
             lca_truck_l_mi = st.number_input(
                 "Truck Fuel Economy (L/mi)", 0.1, 3.0,
@@ -2653,9 +2570,10 @@ with tab_impact:
             lca_ef_n2o_gj = 4.0     # N2O EF g/GJ [IPCC 2006 Table 2.5]
             lca_rankine   = 21.651  # Rankine efficiency % [GREET Bio_electricity row 22]
             if not IS_SAF:
-                section("Bioenergy Combustion Constants")
+                section("Bioenergy Combustion — IPCC / GREET")
                 st.caption(f"CF Wood: {lca_cf_wood}  |  CF Pulp: {lca_cf_pulp}  |  "
-                           f"CH4 EF: {lca_ef_ch4_gj} g/GJ  |  N2O EF: {lca_ef_n2o_gj} g/GJ  |  ")
+                           f"CH4 EF: {lca_ef_ch4_gj} g/GJ  |  N2O EF: {lca_ef_n2o_gj} g/GJ  |  "
+                           f"Rankine: {lca_rankine}%  (all constants)")
 
         with _lc5:
             # All SAF production constants — no user inputs, not displayed
@@ -2680,14 +2598,14 @@ with tab_impact:
         lca_saf_L         = _auto_saf_L
         lca_diesel_L      = _auto_die_L
         lca_naphtha_L     = _auto_nap_L
-        # lca_dist_saf      = _auto_dist_saf
-        lca_dist_f    = _auto_dist_f
-        lca_dist_m    = _auto_dist_m
-        lca_dist_pw   = _auto_dist_pw
-        # lca_dist_saf_mi   = _auto_dist_saf_mi
-        lca_dist_f_mi = _auto_dist_f_mi
-        lca_dist_m_mi = _auto_dist_m_mi
-        lca_dist_pw_mi= _auto_dist_pw_mi
+        lca_dist_saf      = _auto_dist_saf
+        lca_dist_bio_f    = _auto_dist_bio_f
+        lca_dist_bio_m    = _auto_dist_bio_m
+        lca_dist_bio_pw   = _auto_dist_bio_pw
+        lca_dist_saf_mi   = _auto_dist_saf_mi
+        lca_dist_bio_f_mi = _auto_dist_bio_f_mi
+        lca_dist_bio_m_mi = _auto_dist_bio_m_mi
+        lca_dist_bio_pw_mi= _auto_dist_bio_pw_mi
         # Processing options: mirror the options selected in Transport tab per source.
         # SAF feedstock (forest HQ) uses tr_opt_forest (1.x); bioenergy forest uses same.
         # Mill always uses tr_opt_mill (default 3.1); pulpwood uses tr_opt_pulpwood.
@@ -2816,20 +2734,21 @@ with tab_impact:
                             proc_saf = {"bioCO2_t": 0, "fossCO2_t": 0, "CH4_CO2e": 0, "N2O_CO2e": 0}
 
                         # Legacy single-source variables kept for chart labels
-                        # ps_raw = _proc_calc(int(_f_odt), lca_proc_code_saf,
-                        #                      include_screener=lca_include_screener)["mid"]
-                        # pb_raw = _proc_calc(int(_f_odt_bio if not IS_SAF else _f_odt),
-                        #                      lca_proc_code_bio,
-                        #                      include_screener=lca_include_screener)["mid"]
+                        ps_raw = _proc_calc(int(_f_odt), lca_proc_code_saf,
+                                             include_screener=lca_include_screener)["mid"]
+                        pb_raw = _proc_calc(int(_f_odt_bio if not IS_SAF else _f_odt),
+                                             lca_proc_code_bio,
+                                             include_screener=lca_include_screener)["mid"]
 
                         # ── 2. Transport emissions — one call per source ──────
-                        # phase2_transport uses a single global TRUCK_PAYLOAD_OD_KG, so we
-                        # treats the supplied res_kg as the full load (saf==bio case).
+                        # phase2_transport(total_kg, dist_km) — new 2-arg signature.
+                        # Patch TRUCK_PAYLOAD_OD_KG before each call so per-source
+                        # payloads are respected.
                         def _call_trans(res_kg, dist_km, payload_kg):
                             _bt_mod.TRUCK_PAYLOAD_OD_KG = int(payload_kg)
                             with contextlib.redirect_stdout(_io.StringIO()):
                                 _r = _trans_calc(res_kg, dist_km)
-                            return _r["saf"]   # saf == bio when hq_frac=1.0
+                            return _r["saf"]
 
                         def _pack_trans(t):
                             ch4_t = t["CH4"] / 1000; n2o_t = t["N2O"] / 1000
@@ -2848,17 +2767,17 @@ with tab_impact:
                         if IS_SAF:
                             # SAF mode: all sources → SAF plant, each with its own payload
                             trans_saf = _zero_trans
-                            if _f_odt  > 0: trans_saf = _add_trans(trans_saf, _pack_trans(_call_trans(_f_odt  * 907.185, lca_dist_f, lca_payload_kg)))
-                            if _m_odt  > 0: trans_saf = _add_trans(trans_saf, _pack_trans(_call_trans(_m_odt  * 907.185, lca_dist_m, lca_payload_kg_mill)))
-                            if _pw_odt > 0: trans_saf = _add_trans(trans_saf, _pack_trans(_call_trans(_pw_odt * 907.185, lca_dist_pw, lca_payload_kg_pulpwood)))
+                            if _f_odt  > 0: trans_saf = _add_trans(trans_saf, _pack_trans(_call_trans(_f_odt  * 1000, lca_dist_saf, lca_payload_kg)))
+                            if _m_odt  > 0: trans_saf = _add_trans(trans_saf, _pack_trans(_call_trans(_m_odt  * 1000, lca_dist_saf, lca_payload_kg_mill)))
+                            if _pw_odt > 0: trans_saf = _add_trans(trans_saf, _pack_trans(_call_trans(_pw_odt * 1000, lca_dist_saf, lca_payload_kg_pulpwood)))
                             trans_bio = _zero_trans
                         else:
                             # Bioenergy mode: each source → bioenergy plant at its own distance and payload
                             _f_odt_bio = _tr_run.get("forest", {}).get("residue_kdry", lca_total_odt/1000) * 1000
                             trans_bio = _zero_trans
-                            if _f_odt_bio > 0: trans_bio = _add_trans(trans_bio, _pack_trans(_call_trans(_f_odt_bio * 907.185, lca_dist_f,  lca_payload_kg)))
-                            if _m_odt    > 0: trans_bio = _add_trans(trans_bio, _pack_trans(_call_trans(_m_odt     * 907.185, lca_dist_m,  lca_payload_kg_mill)))
-                            # if _pw_odt   > 0: trans_bio = _add_trans(trans_bio, _pack_trans(_call_trans(_pw_odt    * 907.185, lca_dist_bio_pw, lca_payload_kg_pulpwood)))
+                            if _f_odt_bio > 0: trans_bio = _add_trans(trans_bio, _pack_trans(_call_trans(_f_odt_bio * 1000, lca_dist_bio_f,  lca_payload_kg)))
+                            if _m_odt    > 0: trans_bio = _add_trans(trans_bio, _pack_trans(_call_trans(_m_odt     * 1000, lca_dist_bio_m,  lca_payload_kg_mill)))
+                            if _pw_odt   > 0: trans_bio = _add_trans(trans_bio, _pack_trans(_call_trans(_pw_odt    * 1000, lca_dist_bio_pw, lca_payload_kg_pulpwood)))
                             trans_saf = _zero_trans
 
                         # ── 3. Bioenergy production emissions (Bioenergy mode only) ──
@@ -2982,13 +2901,13 @@ with tab_impact:
                             # Non-biogenic totals
                             if IS_SAF:
                                 _proj_nb = _nb(proc_saf) + _nb(trans_saf) + (_nb(saf_prod) if saf_prod else 0)
-                                _proj_nb_combined = (_nb(proc_saf)+_nb(trans_saf)+(_nb(saf_prod) if saf_prod else 0) 
-                                    # + _nb(proc_bio)+_nb(trans_bio)
+                                _proj_nb_combined = (
+                                    _nb(proc_saf)+_nb(trans_saf)+(_nb(saf_prod) if saf_prod else 0) +
+                                    _nb(proc_bio)+_nb(trans_bio)
                                 )
                             else:
                                 _proj_nb = _nb(proc_bio) + _nb(trans_bio) + (_nb(bio_prod) if bio_prod else 0)
-                                # _proj_nb_combined = _proj_nb
-                                _proj_nb_combined = _nb(proc_bio) + _nb(trans_bio) + (_nb(bio_prod) if bio_prod else 0)
+                                _proj_nb_combined = _proj_nb
 
                             # ── Build figure ─────────────────────────────────
                             _fig, (_axL, _axR) = plt.subplots(
