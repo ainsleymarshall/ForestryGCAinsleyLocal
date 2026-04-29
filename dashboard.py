@@ -486,10 +486,9 @@ def render_plot_all(figs_result) -> None:
                     render_pyplot_safe(_figs[_i + 1])
             _i += 2
         else:
-            # Odd final entry — render right-aligned at half width using columns
-            # Use st.columns but wrap in a container to suppress the empty col height
-            _, _col2 = st.columns([1, 1], gap="medium")
-            with _col2:
+            # Odd final entry — render left-aligned at half width using columns
+            _col1, _ = st.columns([1, 1], gap="medium")
+            with _col1:
                 if _figs[_i] is not None:
                     render_pyplot_safe(_figs[_i])
             _i += 1
