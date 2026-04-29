@@ -3169,17 +3169,18 @@ with tab_impact:
                         info("<b>Run Economics tab first</b> to calculate jobs.")
                     else:
                         section("Plot 3 — Jobs Creation")
-                        _j1, _j2, _j3, _j4 = st.columns(4)
-                        with _j1: st.markdown(mc("Direct Jobs",   str(_jobs["direct_jobs"]),   "plant operations"),         unsafe_allow_html=True)
-                        with _j2: st.markdown(mc("Indirect Jobs", str(_jobs["indirect_jobs"]), "supply chain", "mc-amber"), unsafe_allow_html=True)
-                        with _j3: st.markdown(mc("Induced Jobs",  str(_jobs["induced_jobs"]),  "local economy", "mc-blue"), unsafe_allow_html=True)
-                        with _j4: st.markdown(mc("Total Jobs",    str(_jobs["total_jobs"]),    "all categories"),            unsafe_allow_html=True)
-                        # info(
-                        #     "<b>EPI Employment Multipliers (2019$).</b> "
-                        #     "Bioenergy: Electric Power sector. "
-                        #     "SAF: Petroleum Manufacturing sector."
-                        # )
-                        render_saved_png("Jobscreation_plots/plot_jobs.png")
+                        # Match the 2-column layout of Plots 1+2 above:
+                        # left col = metric cards (2x2 grid), right col = jobs chart
+                        _jcol_l, _jcol_r = st.columns(2, gap="medium")
+                        with _jcol_l:
+                            _j1, _j2 = st.columns(2)
+                            _j3, _j4 = st.columns(2)
+                            with _j1: st.markdown(mc("Direct Jobs",   str(_jobs["direct_jobs"]),   "plant operations"),         unsafe_allow_html=True)
+                            with _j2: st.markdown(mc("Indirect Jobs", str(_jobs["indirect_jobs"]), "supply chain", "mc-amber"), unsafe_allow_html=True)
+                            with _j3: st.markdown(mc("Induced Jobs",  str(_jobs["induced_jobs"]),  "local economy", "mc-blue"), unsafe_allow_html=True)
+                            with _j4: st.markdown(mc("Total Jobs",    str(_jobs["total_jobs"]),    "all categories"),            unsafe_allow_html=True)
+                        with _jcol_r:
+                            render_saved_png("Jobscreation_plots/plot_jobs.png")
 
             if not st.session_state.get("lca_results"):
                 info("Configure inputs above and click <b>Run Analysis</b>.")
@@ -3355,7 +3356,7 @@ with tab_policy:
 
                     if _cs is not None:
                         st.markdown(mc("Min IRA 45Y PTC for NPV=0",
-                                       f"${_cs*100:.4f} cents/kWh",
+                                       f"{_cs*100:.4f} ¢/kWh",
                                        f"at ${_market_p:.0f}/MWh market price", "mc-amber"),
                                     unsafe_allow_html=True)
 
