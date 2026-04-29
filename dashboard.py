@@ -2007,47 +2007,6 @@ with tab_econ:
             col_header("Bioenergy Results")
             with st.container():
                 if True:
-                    # ── Electricity generation chart in results area ──────────
-                    _be_elec_df = st.session_state.get("be_df")
-                    if _be_elec_df is not None and "Annual Generation (GWh)" in _be_elec_df.columns:
-                        try:
-                            _eg_fig, _eg_ax = plt.subplots(figsize=(7, 3))
-                            _eg_fig.patch.set_facecolor("#0e1621")
-                            _eg_ax.set_facecolor("#131e2d")
-                            _yrs = _be_elec_df["Year"].values
-                            _gen = _be_elec_df["Annual Generation (GWh)"].values
-                            _eg_ax.plot(_yrs, _gen, color="#1D9E75", linewidth=2, label="Annual Generation (GWh)")
-                            if "Cumulative Output Loss (%)" in _be_elec_df.columns:
-                                _eg2 = _eg_ax.twinx()
-                                _eg2.plot(_yrs, _be_elec_df["Cumulative Output Loss (%)"].values,
-                                          color="#e76f51", linewidth=1.5, linestyle="--",
-                                          label="Output Loss (%)")
-                                _eg2.set_ylabel("Cumulative Output Loss (%)", fontsize=8, color="#e76f51")
-                                _eg2.tick_params(colors="#e76f51")
-                                _eg2.spines[["top"]].set_visible(False)
-                                _eg2.spines[["right"]].set_color("#e76f51")
-                            _eg_ax.set_xlabel("Year", fontsize=9, color="#c8d8e8")
-                            _eg_ax.set_ylabel("Annual Generation (GWh)", fontsize=9, color="#c8d8e8")
-                            _eg_ax.set_title("Electricity Generation Over Time",
-                                             fontsize=10, fontweight="bold", color="#e8f0f8")
-                            _eg_ax.spines[["top","right"]].set_visible(False)
-                            _eg_ax.spines[["left","bottom"]].set_color("#2a3a4a")
-                            _eg_ax.tick_params(colors="#c8d8e8")
-                            _eg_ax.grid(axis="y", color="#1e2d3d", linewidth=0.7)
-                            lines1, labs1 = _eg_ax.get_legend_handles_labels()
-                            if "Cumulative Output Loss (%)" in _be_elec_df.columns:
-                                lines2, labs2 = _eg2.get_legend_handles_labels()
-                                _eg_ax.legend(lines1+lines2, labs1+labs2,
-                                              fontsize=8, facecolor="#0e1621",
-                                              edgecolor="#2a3a4a", labelcolor="#c8d8e8",
-                                              loc="upper right")
-                            else:
-                                _eg_ax.legend(fontsize=8, facecolor="#0e1621",
-                                              edgecolor="#2a3a4a", labelcolor="#c8d8e8")
-                            plt.tight_layout()
-                            render_pyplot_safe(_eg_fig)
-                        except Exception as _ege:
-                            st.caption(f"Generation chart: {_ege}")
                     if True:  # keep subsequent results block indentation
 
                         def _run_be_cashflow():
