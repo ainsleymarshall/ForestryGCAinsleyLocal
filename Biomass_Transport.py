@@ -545,7 +545,7 @@ def plot_cost_vs_distance(
             mpatches.Patch(color=_C["processing"],     label="Processing"),
             mpatches.Patch(color=_C["transportation"], label="Transportation"),
         ],
-        fontsize=9, framealpha=0.85, facecolor=_BG, edgecolor=_SPINE, labelcolor=_TEXT, loc="lower right",
+        fontsize=9, framealpha=0.85, facecolor=_BG, edgecolor=_SPINE, labelcolor=_TEXT, loc="upper left",
     )
     _apply_style(ax)
     if standalone:
@@ -626,7 +626,7 @@ def plot_compare_options(
             mpatches.Patch(color=_C["processing"],     label="Processing"),
             mpatches.Patch(color=_C["transportation"], label="Transportation"),
         ],
-        fontsize=9, framealpha=0.85, facecolor=_BG, edgecolor=_SPINE, labelcolor=_TEXT, loc="lower right",
+        fontsize=9, framealpha=0.85, facecolor=_BG, edgecolor=_SPINE, labelcolor=_TEXT, loc="upper left",
     )
     _apply_style(ax)
     ax.xaxis.grid(True, linestyle="--", linewidth=0.6, color=_GRID)
@@ -880,7 +880,7 @@ def plot_cost_breakdown_bar(
     ax.legend(
         handles=[mpatches.Patch(color=c, label=l) for l, _, c in components if _ > 0],
         fontsize=9, framealpha=0.85, facecolor=_BG, edgecolor=_SPINE, labelcolor=_TEXT,
-        loc="lower center", bbox_to_anchor=(0.5, -0.18), ncol=1,
+        loc="upper left",
     )
     _apply_style(ax)
     ax.yaxis.grid(True, linestyle="--", linewidth=0.6, color=_GRID)
