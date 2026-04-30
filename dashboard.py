@@ -3904,7 +3904,9 @@ with tab_compare:
                 _r["Payback (yr)"] = f"{_pb:.1f}" if _pb else "Never"
                 _r["TCI ($M)"]     = f"${_m.get('Total Capital Investment (TCI)',0)/1e6:.1f}M"
                 if _s.get("saf_mfsp"):
-                    _r["MFSP SAF ($/gal)"] = f"${_s['saf_mfsp']['MFSP SAF ($/L)']*L_PER_GAL:.4f}"
+                    _r["MFSP SAF ($/gal)"]     = f"${_s['saf_mfsp']['MFSP SAF ($/L)']*L_PER_GAL:.4f}"
+                    _r["MFSP Diesel ($/gal)"]  = f"${_s['saf_mfsp']['MFSP Diesel ($/L)']*L_PER_GAL:.4f}"
+                    _r["MFSP Naphtha ($/gal)"] = f"${_s['saf_mfsp']['MFSP Naptha ($/L)']*L_PER_GAL:.4f}"
 
             # LCA
             if _s.get("lca_results"):
@@ -3941,8 +3943,21 @@ with tab_compare:
             _rows.append(_r)
 
         _cmp_df = pd.DataFrame(_rows).set_index("Name")
-        st.dataframe(_cmp_df, use_container_width=True,
-                     height=min(600, 45 * len(_rows) + 45))
+        st.markdown("""
+        <style>
+        [data-testid="stDataFrame"] { background:#060a0f !important; border-radius:6px; }
+        [data-testid="stDataFrame"] iframe { background:#060a0f !important; }
+        </style>""", unsafe_allow_html=True)
+        st.dataframe(_cmp_df.style.set_properties(**{
+            "background-color": "#060a0f",
+            "color": "#c9d1e0",
+            "border-color": "#1a2535",
+        }).set_table_styles([
+            {"selector": "th", "props": [("background-color", "#0a1020"), ("color", "#4ade80"),
+                                          ("font-size", "0.72rem"), ("text-transform", "uppercase"),
+                                          ("letter-spacing", ".05em"), ("border-color", "#1a2535")]},
+            {"selector": "tr:hover td", "props": [("background-color", "#0f1e30 !important")]},
+        ]), use_container_width=True, height=min(600, 45 * len(_rows) + 45))
         st.download_button("⬇ Download CSV",
                            _cmp_df.reset_index().to_csv(index=False).encode(),
                            "scenario_comparison.csv", "text/csv", key="dl_csv")
