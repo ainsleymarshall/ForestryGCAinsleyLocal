@@ -1506,34 +1506,25 @@ with tab_tr:
             _pw_raw = (_pw_eff / _pw_ob_frac) if _pw_ob_frac > 0 else _pw_eff
 
             # ── Bioenergy widget keys ─────────────────────────────────────────
-            # Push RAW tons — model receives raw tons + obtainability and applies
-            # the reduction itself. Clamp to widget min_value=1.
-            if _f_raw > 0:
-                st.session_state["be_f_tons"]  = max(1, int(_f_raw * 1000))
-            if _m_raw > 0:
-                st.session_state["be_m_tons"]  = max(0, int(_m_raw * 1000))
+            # Always write — even zero — so empty county selections clear old values.
+            st.session_state["be_f_tons"]  = max(0, int(_f_raw * 1000))
+            st.session_state["be_m_tons"]  = max(0, int(_m_raw * 1000))
             if _f_c > 0:
                 st.session_state["be_f_cost"]  = float(round(_f_c, 2))
             if _m_c > 0:
                 st.session_state["be_m_cost"]  = float(round(_m_c, 2))
-            # obtainability: Economics tab reads tr_obtain_* directly from session_state
 
             # ── SAF widget keys ───────────────────────────────────────────────
-            # Push RAW tons — SAF model receives raw tons + obtainability and applies
-            # the reduction itself.
-            if _f_raw > 0:
-                st.session_state["saf_f_tons"]  = int(_f_raw * 1000)
-            if _pw_raw > 0:
-                st.session_state["saf_pw_tons"] = int(_pw_raw * 1000)
-            if _m_raw > 0:
-                st.session_state["saf_sw_tons"] = int(_m_raw * 1000)
+            # Always write — even zero — so empty county selections clear old values.
+            st.session_state["saf_f_tons"]  = int(_f_raw * 1000)
+            st.session_state["saf_pw_tons"] = int(_pw_raw * 1000)
+            st.session_state["saf_sw_tons"] = int(_m_raw * 1000)
             if _f_c > 0:
                 st.session_state["saf_pdc_f"]   = float(round(_f_c, 2))
             if _pw_c > 0:
                 st.session_state["saf_pdc_pw"]  = float(round(_pw_c, 2))
             if _m_c > 0:
                 st.session_state["saf_pdc_sw"]  = float(round(_m_c, 2))
-            # obtainability: Economics tab reads tr_obtain_* directly from session_state
 
             # Only clear stale economics cache when transport values have changed.
             # This prevents wiping LCOE/be_df every time you visit this tab.
@@ -1599,9 +1590,9 @@ with tab_econ:
             # ── Raw (pre-obtainability) throughputs from session_state ─────────
             # These were set by the Transport auto-send. The model applies
             # obtainability internally — raw tons + obtain fraction is the correct input.
-            _f_tons_base   = int(st.session_state.get("saf_f_tons",  (int(sc_res["forest"].get("hq_kdry", 0) * 1000) if sc_res else 100_000)))
-            _pw_tons_base  = int(st.session_state.get("saf_pw_tons", (int(sc_res.get("pulpwood", {}).get("total_kdry", 0) * 1000) if sc_res else 100_000)))
-            _sw_tons_base  = int(st.session_state.get("saf_sw_tons", (int(sc_res["mill"].get("total_kdry", 0) * 1000) if sc_res else 100_000)))
+            _f_tons_base   = int(st.session_state.get("saf_f_tons",  (int(sc_res["forest"].get("hq_kdry", 0) * 1000) if sc_res else 0)))
+            _pw_tons_base  = int(st.session_state.get("saf_pw_tons", (int(sc_res.get("pulpwood", {}).get("total_kdry", 0) * 1000) if sc_res else 0)))
+            _sw_tons_base  = int(st.session_state.get("saf_sw_tons", (int(sc_res["mill"].get("total_kdry", 0) * 1000) if sc_res else 0)))
 
             # ── Auto-fill PDCs from Transport tab ($/dry ton = $/ODT) ─────────
             _pdc_f  = tr_res["forest"]["cost_odt"]   if tr_res and "forest"   in tr_res else 60.0
@@ -1903,15 +1894,15 @@ with tab_econ:
             # Raw (pre-obtainability) tons — read from session_state (set by Transport auto-send).
             # Do NOT recalculate here; Transport auto-send is the single source of truth.
             # Fall back through tr_results → sc_results only if auto-send never ran.
-            if st.session_state.get("be_f_tons"):
+            if st.session_state.get("be_f_tons") is not None:
                 _f_tons = st.session_state["be_f_tons"]
             elif tr_res and "forest" in tr_res:
                 _f_ob_frac = float(tr_res["forest"].get("obtainability", st.session_state.get("tr_obtain_forest", 100))) / 100.0
-                _f_tons = max(1, int(tr_res["forest"]["residue_kdry"] / _f_ob_frac * 1000)) if _f_ob_frac > 0 else max(1, int(tr_res["forest"]["residue_kdry"] * 1000))
+                _f_tons = int(tr_res["forest"]["residue_kdry"] / _f_ob_frac * 1000) if _f_ob_frac > 0 else int(tr_res["forest"]["residue_kdry"] * 1000)
             elif sc_res:
-                _f_tons = max(1, int(sc_res["forest"].get("total_kdry", 0) * 1000))
+                _f_tons = int(sc_res["forest"].get("total_kdry", 0) * 1000)
             else:
-                _f_tons = 100_000
+                _f_tons = 0
 
             if st.session_state.get("be_m_tons") is not None:
                 _m_tons = st.session_state["be_m_tons"]
@@ -1921,7 +1912,7 @@ with tab_econ:
             elif sc_res:
                 _m_tons = int(sc_res["mill"].get("total_kdry", 0) * 1000)
             else:
-                _m_tons = 80_000
+                _m_tons = 0
 
             _f_cost = tr_res["forest"]["cost_odt"] if tr_res and "forest" in tr_res else 25.0
             _m_cost = tr_res["mill"]["cost_odt"]   if tr_res and "mill"   in tr_res else 20.0
@@ -3233,8 +3224,8 @@ with tab_policy:
             # the percentage (e.g. 7.0), NOT the decimal (0.07).  We divide here
             # to match exactly what the Economics tab passes to build_cash_flow_analysis.
             _ss     = st.session_state
-            _f_t    = _ss.get("be_f_tons",    100_000)
-            _m_t    = _ss.get("be_m_tons",     80_000)
+            _f_t    = _ss.get("be_f_tons",    0)
+            _m_t    = _ss.get("be_m_tons",    0)
             _life   = _ss.get("be_life",           30)
             _fc     = _ss.get("be_f_cost",       25.0)
             _mc     = _ss.get("be_m_cost",       20.0)
@@ -3429,9 +3420,9 @@ with tab_policy:
             # Auto-fill throughputs and PDCs (same as economics tab).
             # Prefer session_state values set by Transport auto-send (post-send raw tons).
             # Fall back to sc_results (pre-obtainability) only as last resort — warn the user.
-            _f_t_sc  = int(sc_res["forest"].get("hq_kdry",0)*1000) if sc_res else 100_000
-            _pw_t_sc = int(sc_res.get("pulpwood",{}).get("total_kdry",0)*1000) if sc_res else 100_000
-            _sw_t_sc = int(sc_res["mill"].get("total_kdry",0)*1000) if sc_res else 100_000
+            _f_t_sc  = int(sc_res["forest"].get("hq_kdry",0)*1000) if sc_res else 0
+            _pw_t_sc = int(sc_res.get("pulpwood",{}).get("total_kdry",0)*1000) if sc_res else 0
+            _sw_t_sc = int(sc_res["mill"].get("total_kdry",0)*1000) if sc_res else 0
             _using_sc_fallback = not st.session_state.get("tr_sent_to_econ") and not st.session_state.get("saf_f_tons")
             _f_t  = st.session_state.get("saf_f_tons",  _f_t_sc)
             _pw_t = st.session_state.get("saf_pw_tons", _pw_t_sc)
