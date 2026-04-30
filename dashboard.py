@@ -1069,20 +1069,52 @@ with tab_sc:
                         _intensity   = _r[_col] / _mx
                         _sel         = st.session_state["sc_selected"].get(_lbl.lower(), [])
                         _is_selected = _r["county_label"] in _sel
-                        _base   = (5 + _intensity * 6) if _is_selected else (3 + _intensity * 4)
-                        _radius = _base + _ring_offset
-                        folium.CircleMarker(
-                            location=[_r["lat"], _r["lon"]],
-                            radius=_radius,
-                            color=_hex,
-                            fill=_solid,
-                            fill_color=_hex if _solid else None,
-                            fill_opacity=0.85 if (_solid and _is_selected) else (0.70 if _solid else 0),
-                            weight=4.0 if not _solid else (2.0 if _is_selected else 1.2),
-                            tooltip=(f"<b>{_lbl}</b>: {_r['county_label']}<br>"
-                                     f"Supply: {_r[_col]:.2f}k odt/yr<br>"
-                                     f"Distance: {_r['road_miles']:.0f} mi"),
-                        ).add_to(fmap)
+
+                        if _is_selected:
+                            # ── Selected: large bright dot + white halo ring ──
+                            _radius = 12 + _intensity * 6
+                            # Outer white halo for contrast
+                            folium.CircleMarker(
+                                location=[_r["lat"], _r["lon"]],
+                                radius=_radius + 5,
+                                color="#ffffff",
+                                fill=False,
+                                weight=2.5,
+                                opacity=0.9,
+                                tooltip=(f"<b>{_lbl}</b>: {_r['county_label']}<br>"
+                                         f"Supply: {_r[_col]:.2f}k odt/yr<br>"
+                                         f"Distance: {_r['road_miles']:.0f} mi ✓ SELECTED"),
+                            ).add_to(fmap)
+                            # Inner filled dot
+                            folium.CircleMarker(
+                                location=[_r["lat"], _r["lon"]],
+                                radius=_radius,
+                                color=_hex,
+                                fill=True,
+                                fill_color=_hex,
+                                fill_opacity=1.0,
+                                weight=3.0,
+                                tooltip=(f"<b>{_lbl}</b>: {_r['county_label']}<br>"
+                                         f"Supply: {_r[_col]:.2f}k odt/yr<br>"
+                                         f"Distance: {_r['road_miles']:.0f} mi ✓ SELECTED"),
+                            ).add_to(fmap)
+                        else:
+                            # ── Unselected: small dim dot ──
+                            _base   = (3 + _intensity * 4)
+                            _radius = _base + _ring_offset
+                            folium.CircleMarker(
+                                location=[_r["lat"], _r["lon"]],
+                                radius=_radius,
+                                color=_hex,
+                                fill=_solid,
+                                fill_color=_hex if _solid else None,
+                                fill_opacity=0.35 if _solid else 0,
+                                weight=1.2 if not _solid else 0.8,
+                                opacity=0.4,
+                                tooltip=(f"<b>{_lbl}</b>: {_r['county_label']}<br>"
+                                         f"Supply: {_r[_col]:.2f}k odt/yr<br>"
+                                         f"Distance: {_r['road_miles']:.0f} mi"),
+                            ).add_to(fmap)
 
             # ── Route lines to selected counties (after Calculate) ────────────
             if results is not None:
