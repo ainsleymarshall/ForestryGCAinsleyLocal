@@ -3943,21 +3943,8 @@ with tab_compare:
             _rows.append(_r)
 
         _cmp_df = pd.DataFrame(_rows).set_index("Name")
-        st.markdown("""
-        <style>
-        [data-testid="stDataFrame"] { background:#060a0f !important; border-radius:6px; }
-        [data-testid="stDataFrame"] iframe { background:#060a0f !important; }
-        </style>""", unsafe_allow_html=True)
-        st.dataframe(_cmp_df.style.set_properties(**{
-            "background-color": "#060a0f",
-            "color": "#c9d1e0",
-            "border-color": "#1a2535",
-        }).set_table_styles([
-            {"selector": "th", "props": [("background-color", "#0a1020"), ("color", "#4ade80"),
-                                          ("font-size", "0.72rem"), ("text-transform", "uppercase"),
-                                          ("letter-spacing", ".05em"), ("border-color", "#1a2535")]},
-            {"selector": "tr:hover td", "props": [("background-color", "#0f1e30 !important")]},
-        ]), use_container_width=True, height=min(600, 45 * len(_rows) + 45))
+        st.dataframe(_cmp_df, use_container_width=True,
+                     height=min(600, 45 * len(_rows) + 45))
         st.download_button("⬇ Download CSV",
                            _cmp_df.reset_index().to_csv(index=False).encode(),
                            "scenario_comparison.csv", "text/csv", key="dl_csv")
