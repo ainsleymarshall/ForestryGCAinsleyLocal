@@ -401,7 +401,7 @@ def generate_scenario_pdf(snap, out_path,
     # Summary table
     srcs=[("forest","Forest Residue"),("mill","Sawmill Residue"),("pulpwood","Pulpwood")]
     sc_hdr=["Source","Counties","Base Supply\n(k odt/yr)","Obtainability",
-            "Effective\n(k odt/yr)","Haul Dist\n(mi)","Transport Opt.","Delivered\n($/ODT)"]
+            "Effective\n(k odt/yr)","Haul Dist\n(mi)","Transport Opt.","Stumpage\n($/ODT)","Delivered\n($/ODT)"]
     sc_rows=[sc_hdr]
     for key, label in srcs:
         sc_s=sc.get(key,{}); tr_s=tr.get(key,{})
@@ -409,6 +409,7 @@ def generate_scenario_pdf(snap, out_path,
         ob=tr_s.get("obtainability",100)
         eff=tr_s.get("residue_kdry",base*ob/100 if base else 0)
         dist=tr_s.get("dist_mi"); opt=tr_s.get("option","—"); cost=tr_s.get("cost_odt")
+        stump=tr_s.get("stumpage",0.0)
         counties=sc_s.get("counties",[])
         sc_rows.append([label,
             str(len(counties)) if counties else "—",
@@ -417,8 +418,9 @@ def generate_scenario_pdf(snap, out_path,
             f"{eff:.1f}k" if eff else "—",
             f"{dist:.0f}" if dist else "—",
             str(opt),
+            f"${stump:.2f}" if stump else "$0.00",
             f"${cost:.2f}" if cost else "—"])
-    cw=[1.15*inch,0.6*inch,0.78*inch,0.75*inch,0.75*inch,0.65*inch,0.85*inch,0.77*inch]
+    cw=[1.05*inch,0.55*inch,0.72*inch,0.68*inch,0.68*inch,0.58*inch,0.78*inch,0.65*inch,0.72*inch]
     st.append(_tbl(sc_rows, cw=cw))
     _sp(st, 0.06)
 
@@ -443,6 +445,9 @@ def generate_scenario_pdf(snap, out_path,
     _tr_ob_f   = _ss_read(snap, "tr_obtain_forest",   100)
     _tr_ob_m   = _ss_read(snap, "tr_obtain_mill",     100)
     _tr_ob_p   = _ss_read(snap, "tr_obtain_pulpwood", 100)
+    _tr_stump_f = _ss_read(snap, "tr_stumpage_forest",   0.0)
+    _tr_stump_m = _ss_read(snap, "tr_stumpage_mill",     0.0)
+    _tr_stump_p = _ss_read(snap, "tr_stumpage_pulpwood", 0.0)
     _tr_inp = [
         [Paragraph("<b>Parameter</b>", S["cell"]), Paragraph("<b>Value</b>", S["cell"])],
         [Paragraph("Avg. Truck Speed",          S["celll"]), Paragraph(f"{_tr_speed} mph",   S["cell"])],
@@ -452,6 +457,9 @@ def generate_scenario_pdf(snap, out_path,
         [Paragraph("Forest Obtainability",      S["celll"]), Paragraph(f"{_tr_ob_f:.0f}%",  S["cell"])],
         [Paragraph("Sawmill Obtainability",     S["celll"]), Paragraph(f"{_tr_ob_m:.0f}%",  S["cell"])],
         [Paragraph("Pulpwood Obtainability",    S["celll"]), Paragraph(f"{_tr_ob_p:.0f}%",  S["cell"])],
+        [Paragraph("Forest Stumpage",           S["celll"]), Paragraph(f"${_tr_stump_f:.2f}/ODT", S["cell"])],
+        [Paragraph("Sawmill Stumpage",          S["celll"]), Paragraph(f"${_tr_stump_m:.2f}/ODT", S["cell"])],
+        [Paragraph("Pulpwood Stumpage",         S["celll"]), Paragraph(f"${_tr_stump_p:.2f}/ODT", S["cell"])],
     ]
     _half = len(_tr_inp) // 2 + 1
     def _half_tbl(rows):

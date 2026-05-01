@@ -436,7 +436,7 @@ def compare_options(
 #   bstp           → forest green  (#22c55e family)
 #   processing     → amber         (#f59e0b family)
 #   transportation → steel blue    (#60a5fa family)
-_C = dict(bstp="#1a7a40", processing="#c97d10", transportation="#2563a8")
+_C = dict(bstp="#1a7a40", processing="#c97d10", transportation="#2563a8", stumpage="#7c3aed")
 
 _BG      = "#0e1621"   # dark navy — matches dashboard background
 _BG_AX   = "#131f2e"   # slightly lighter for axes area
@@ -474,10 +474,11 @@ def plot_cost_vs_distance(
     speed_mph: float = 20.0,
     cost_year: int = 2025,
     mark_distance: float | None = None,
+    stumpage: float = 0.0,
     ax=None,
 ):
     """
-    Stacked-area chart of BSTP / processing / transportation vs haul distance
+    Stacked-area chart of BSTP / processing / transportation / stumpage vs haul distance
     for a single supply-chain option.
 
     Parameters
@@ -485,6 +486,8 @@ def plot_cost_vs_distance(
     mark_distance : float, optional
         Draw a vertical dashed reference line at this distance (miles).
         Annotated with the total $/ODT at that distance.
+    stumpage : float, optional
+        Stumpage cost ($/ODT) to add on top of delivered cost (default 0.0).
     ax : matplotlib Axes, optional
         Axes to draw on; creates a new figure if None.
 
@@ -510,22 +513,26 @@ def plot_cost_vs_distance(
     bstp  = df["bstp"].values
     proc  = df["processing"].values
     trans = df["transportation"].values
+    stump = np.full_like(x, stumpage)
 
-    ax.fill_between(x, 0,           bstp,                color=_C["bstp"],          alpha=0.85)
-    ax.fill_between(x, bstp,        bstp + proc,         color=_C["processing"],    alpha=0.85)
-    ax.fill_between(x, bstp + proc, bstp + proc + trans, color=_C["transportation"],alpha=0.85)
+    ax.fill_between(x, 0,                       bstp,                          color=_C["bstp"],          alpha=0.85)
+    ax.fill_between(x, bstp,                    bstp + proc,                   color=_C["processing"],    alpha=0.85)
+    ax.fill_between(x, bstp + proc,             bstp + proc + trans,           color=_C["transportation"],alpha=0.85)
+    if stumpage > 0:
+        ax.fill_between(x, bstp + proc + trans, bstp + proc + trans + stump,   color=_C["stumpage"],      alpha=0.85)
 
     for bottom, top, color in [
-        (np.zeros_like(x), bstp,           _C["bstp"]),
-        (bstp,             bstp + proc,     _C["processing"]),
-        (bstp + proc,      bstp+proc+trans, _C["transportation"]),
+        (np.zeros_like(x), bstp,                        _C["bstp"]),
+        (bstp,             bstp + proc,                  _C["processing"]),
+        (bstp + proc,      bstp + proc + trans,          _C["transportation"]),
+        (bstp + proc + trans, bstp + proc + trans + stump, _C["stumpage"]),
     ]:
         if np.any(top - bottom > 0.01):
             ax.plot(x, top, color=color, linewidth=1.2)
 
     if mark_distance is not None:
         idx   = int(np.argmin(np.abs(x - mark_distance)))
-        total = bstp[idx] + proc[idx] + trans[idx]
+        total = bstp[idx] + proc[idx] + trans[idx] + stump[idx]
         ax.axvline(mark_distance, color=_TEXT, linewidth=1.4, linestyle="--", zorder=5)
         ax.text(mark_distance + 1.5, ax.get_ylim()[1] * 0.97,
                 f"{mark_distance:.0f} mi\n${total:.1f}/ODT",
@@ -539,12 +546,15 @@ def plot_cost_vs_distance(
     )
     ax.set_xlim(x[0], x[-1])
     ax.set_ylim(0)
+    _legend_handles_cvd = [
+        mpatches.Patch(color=_C["bstp"],          label="Sorting (BSTP)"),
+        mpatches.Patch(color=_C["processing"],     label="Processing"),
+        mpatches.Patch(color=_C["transportation"], label="Transportation"),
+    ]
+    if stumpage > 0:
+        _legend_handles_cvd.append(mpatches.Patch(color=_C["stumpage"], label="Stumpage"))
     ax.legend(
-        handles=[
-            mpatches.Patch(color=_C["bstp"],          label="Sorting (BSTP)"),
-            mpatches.Patch(color=_C["processing"],     label="Processing"),
-            mpatches.Patch(color=_C["transportation"], label="Transportation"),
-        ],
+        handles=_legend_handles_cvd,
         fontsize=9, framealpha=0.85, facecolor=_BG, edgecolor=_SPINE, labelcolor=_TEXT, loc="upper left",
     )
     _apply_style(ax)
@@ -562,6 +572,7 @@ def plot_compare_options(
     speed_mph: float = 20.0,
     cost_year: int = 2025,
     option_ids: list[str] | None = None,
+    stumpage: float = 0.0,
     ax=None,
 ):
     """
@@ -600,12 +611,15 @@ def plot_compare_options(
     bstp     = df["bstp"].values
     proc     = df["processing"].values
     trans    = df["transportation"].values
-    totals   = df["total"].values
+    totals   = df["total"].values + stumpage
 
     bar_h = 0.55
     ax.barh(y, bstp,  bar_h,                  color=_C["bstp"],          edgecolor="white", linewidth=0.7)
     ax.barh(y, proc,  bar_h, left=bstp,        color=_C["processing"],    edgecolor="white", linewidth=0.7)
     ax.barh(y, trans, bar_h, left=bstp + proc, color=_C["transportation"],edgecolor="white", linewidth=0.7)
+    if stumpage > 0:
+        ax.barh(y, np.full(len(y), stumpage), bar_h, left=bstp + proc + trans,
+                color=_C["stumpage"], edgecolor="white", linewidth=0.7)
 
     for i, total in enumerate(totals):
         ax.text(total + 0.3, i, f"${total:.1f}", va="center", ha="left",
@@ -620,12 +634,15 @@ def plot_compare_options(
         fontsize=11, fontweight="bold", pad=10,
     )
     ax.set_xlim(0, totals.max() * 1.15)
+    _legend_handles_co = [
+        mpatches.Patch(color=_C["bstp"],          label="Sorting (BSTP)"),
+        mpatches.Patch(color=_C["processing"],     label="Processing"),
+        mpatches.Patch(color=_C["transportation"], label="Transportation"),
+    ]
+    if stumpage > 0:
+        _legend_handles_co.append(mpatches.Patch(color=_C["stumpage"], label="Stumpage"))
     ax.legend(
-        handles=[
-            mpatches.Patch(color=_C["bstp"],          label="Sorting (BSTP)"),
-            mpatches.Patch(color=_C["processing"],     label="Processing"),
-            mpatches.Patch(color=_C["transportation"], label="Transportation"),
-        ],
+        handles=_legend_handles_co,
         fontsize=9, framealpha=0.85, facecolor=_BG, edgecolor=_SPINE, labelcolor=_TEXT, loc="upper left",
     )
     _apply_style(ax)

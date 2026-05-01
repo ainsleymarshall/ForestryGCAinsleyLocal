@@ -1291,6 +1291,19 @@ with tab_tr:
                     unsafe_allow_html=True
                 )
 
+                # ── Stumpage cost slider ──────────────────────────────────────
+                # Stumpage is the fee paid to the landowner for the right to
+                # harvest timber/residues.  Defaults to $0/ODT (often not charged
+                # for slash residues but relevant for pulpwood / some markets).
+                _stumpage = st.slider(
+                    f"{label} stumpage cost ($/ODT)",
+                    min_value=0.0, max_value=25.0,
+                    value=st.session_state.get(f"tr_stumpage_{source_key}", 0.0),
+                    step=0.5,
+                    key=f"tr_stumpage_{source_key}",
+                    help="Fee paid to landowner per ODT; added directly to delivered cost"
+                )
+
                 # Option selectbox (filtered to valid options for this source)
                 _opt_labels = {oid: f"{oid} — {bt._OPTIONS[oid]['label']}"
                                for oid in option_ids}
@@ -1309,17 +1322,19 @@ with tab_tr:
                     speed_mph      = speed_mph,
                     cost_year      = 2025,
                 )
+                # Add stumpage on top of delivered cost
+                _total_with_stumpage = result["total"] + _stumpage
 
                 # ── Find cheapest option for this source at this distance ──────
                 # Run all valid options and identify the minimum total cost.
                 # Report it as a recommendation to the user.
                 _all_costs = {
-                    oid: bt.delivered_cost(oid, dist_mi, speed_mph, 2025)["total"]
+                    oid: bt.delivered_cost(oid, dist_mi, speed_mph, 2025)["total"] + _stumpage
                     for oid in option_ids
                 }
                 _best_oid  = min(_all_costs, key=_all_costs.get)
                 _best_cost = _all_costs[_best_oid]
-                _curr_cost = result["total"]
+                _curr_cost = _total_with_stumpage
 
                 if _best_oid == _sel_oid:
                     info(f"<b>Best option selected</b><br>"
@@ -1337,7 +1352,7 @@ with tab_tr:
                     unsafe_allow_html=True
                 )
 
-                # $/ODT breakdown cards (2x2 grid)
+                # $/ODT breakdown cards (2x2 grid + stumpage row if >0)
                 _cm1, _cm2 = st.columns(2)
                 with _cm1:
                     st.markdown(mc("BSTP",       f"${result['bstp']:.2f}",
@@ -1349,8 +1364,11 @@ with tab_tr:
                     st.markdown(mc("Transport",  f"${result['transportation']:.2f}",
                                    "$/ODT", _vc), unsafe_allow_html=True)
                     st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
-                    st.markdown(mc("TOTAL",      f"${result['total']:.2f}",
+                    st.markdown(mc("Stumpage",   f"${_stumpage:.2f}",
                                    "$/ODT", _vc), unsafe_allow_html=True)
+                st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+                st.markdown(mc("TOTAL",      f"${_total_with_stumpage:.2f}",
+                               "$/ODT (incl. stumpage)", _vc), unsafe_allow_html=True)
 
             # ── Plots: full-width row below inputs/cards ──────────────────────
             # Always show both plots side-by-side (even single-option sources
@@ -1366,6 +1384,7 @@ with tab_tr:
                     speed_mph     = speed_mph,
                     cost_year     = 2025,
                     mark_distance = dist_mi,
+                    stumpage      = _stumpage,
                 )
                 _fig1.set_size_inches(7, _PLOT_H)
                 plt.tight_layout(pad=0.5)
@@ -1378,6 +1397,7 @@ with tab_tr:
                     speed_mph      = speed_mph,
                     cost_year      = 2025,
                     option_ids     = option_ids,
+                    stumpage       = _stumpage,
                 )
                 _fig2.set_size_inches(7, _PLOT_H)
                 plt.tight_layout(pad=0.5)
@@ -1386,6 +1406,8 @@ with tab_tr:
 
             # Return result with effective (post-obtainability) residue attached
             result["residue_kdry_effective"] = residue_kdry
+            result["stumpage"]               = _stumpage
+            result["total"]                  = _total_with_stumpage
             return result
 
         # ── Render one section per source ─────────────────────────────────────
@@ -1411,6 +1433,7 @@ with tab_tr:
                 "label":         res_forest["label"],
                 "residue_kdry":  res_forest.get("residue_kdry_effective", _f_residue),
                 "obtainability": st.session_state.get("tr_obtain_forest", 100),
+                "stumpage":      res_forest.get("stumpage", 0.0),
             }
 
         # Mill residues (always available in both modes)
@@ -1429,6 +1452,7 @@ with tab_tr:
                 "label":         res_mill["label"],
                 "residue_kdry":  res_mill.get("residue_kdry_effective", _m.get("total_kdry", 0)),
                 "obtainability": st.session_state.get("tr_obtain_mill", 100),
+                "stumpage":      res_mill.get("stumpage", 0.0),
             }
 
         # Pulpwood (SAF only)
@@ -1448,6 +1472,7 @@ with tab_tr:
                     "label":         res_pulp["label"],
                     "residue_kdry":  res_pulp.get("residue_kdry_effective", _p.get("total_kdry", 0)),
                     "obtainability": st.session_state.get("tr_obtain_pulpwood", 100),
+                    "stumpage":      res_pulp.get("stumpage", 0.0),
                 }
 
         tr_results["speed_mph"] = speed_mph
@@ -1459,21 +1484,27 @@ with tab_tr:
         _sc1, _sc2, _sc3 = st.columns(3)
         with _sc1:
             if "forest" in tr_results:
+                _f_stump = tr_results['forest'].get('stumpage', 0.0)
+                _f_suffix = f" · +${_f_stump:.2f} stumpage" if _f_stump > 0 else ""
                 st.markdown(mc("Forest Delivered",
                                f"${tr_results['forest']['cost_odt']:.2f}",
-                               f"$/ODT · {tr_results['forest']['option']}"),
+                               f"$/ODT · {tr_results['forest']['option']}{_f_suffix}"),
                             unsafe_allow_html=True)
         with _sc2:
             if "mill" in tr_results:
+                _m_stump = tr_results['mill'].get('stumpage', 0.0)
+                _m_suffix = f" · +${_m_stump:.2f} stumpage" if _m_stump > 0 else ""
                 st.markdown(mc("Mill Delivered",
                                f"${tr_results['mill']['cost_odt']:.2f}",
-                               f"$/ODT · {tr_results['mill']['option']}",
+                               f"$/ODT · {tr_results['mill']['option']}{_m_suffix}",
                                "mc-amber"), unsafe_allow_html=True)
         with _sc3:
             if IS_SAF and "pulpwood" in tr_results:
+                _p_stump = tr_results['pulpwood'].get('stumpage', 0.0)
+                _p_suffix = f" · +${_p_stump:.2f} stumpage" if _p_stump > 0 else ""
                 st.markdown(mc("Pulpwood Delivered",
                                f"${tr_results['pulpwood']['cost_odt']:.2f}",
-                               f"$/ODT · {tr_results['pulpwood']['option']}",
+                               f"$/ODT · {tr_results['pulpwood']['option']}{_p_suffix}",
                                "mc-blue"), unsafe_allow_html=True)
 
         # ── Auto-send: write transport results downstream on every render ──────
